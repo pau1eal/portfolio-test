@@ -25,8 +25,6 @@
     h1{font-size: clamp(1.1rem, 1.5vw + 1rem, 1.8rem); margin:0; letter-spacing:.3px}
     .sub{color: var(--muted); font-size:.95rem; margin-top:6px}
 
-    .notice{display:none; margin:12px 0 0; padding:10px 12px; border:1px dashed var(--ring); border-radius:12px; color: var(--muted)}
-
     .grid{display:grid; gap:14px; padding:18px 16px 32px}
     @media (min-width:480px){ .grid{ grid-template-columns: repeat(2, 1fr);} }
     @media (min-width:768px){ .grid{ grid-template-columns: repeat(3, 1fr);} }
@@ -61,7 +59,6 @@
     <div class="wrap">
       <h1>Proyectos de ArtStation — pauleal</h1>
       <p class="sub">Cargando automáticamente la portada de cada proyecto. Haz clic para abrir en ArtStation.</p>
-      <div id="notice" class="notice">Parece que has abierto este archivo directamente con <code>file://</code>. Algunas peticiones externas pueden fallar por CORS. Sube este archivo a un servidor (GitHub Pages, Netlify, Vercel) o lánzalo con un servidor local (ej. <code>npx serve</code>).</div>
     </div>
   </header>
 
@@ -73,14 +70,7 @@
   </main>
 
   <script>
-    const USER = "pauleal"; // <- tu usuario de ArtStation
-
     const grid = document.getElementById('grid');
-    const notice = document.getElementById('notice');
-
-    if (location.protocol === 'file:') {
-      notice.style.display = 'block';
-    }
 
     // Render placeholders
     const PLACEHOLDERS = 8;
@@ -91,15 +81,7 @@
       grid.appendChild(ph);
     }
 
-    async function fetchPage(page = 1) {
-      const url = `https://www.artstation.com/users/${USER}/projects.json?page=${page}`;
-      const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    }
-
     function imageFrom(project) {
-      // Preferimos la de mayor tamaño disponible entre estas claves habituales
       const cover = project.cover || {};
       return cover.image_url || cover.medium_image_url || cover.small_image_url || cover.url || project.cover_url || '';
     }
@@ -125,30 +107,17 @@
 
     async function loadAll() {
       try {
-        let page = 1;
-        let all = [];
-        while (true) {
-          const json = await fetchPage(page);
-          const items = Array.isArray(json.data) ? json.data : [];
-          if (!items.length) break;
-          all = all.concat(items);
-          // si hay paginación, suele venir json.per_page y json.total_count
-          if (json.per_page && json.total_count) {
-            const totalPages = Math.ceil(json.total_count / json.per_page);
-            if (page >= totalPages) break;
-          } else if (items.length < 50) { // heurística defensiva
-            break;
-          }
-          page++;
-        }
-        if (!all.length) {
+        const res = await fetch('/api/artstation');
+        const data = await res.json();
+        const projects = Array.isArray(data.data) ? data.data : [];
+        if (!projects.length) {
           grid.innerHTML = '<p style="color: var(--muted)">No se encontraron proyectos.</p>';
           return;
         }
-        renderProjects(all);
+        renderProjects(projects);
       } catch (err) {
         console.error(err);
-        grid.innerHTML = `<p style="color:#f88">Error al cargar proyectos (${err.message}). ¿Estás abriendo el archivo con <code>file://</code>? Prueba a servirlo desde un dominio o un servidor local.</p>`;
+        grid.innerHTML = `<p style="color:#f88">Error al cargar proyectos (${err.message}). Asegúrate de desplegar la función /api/artstation correctamente en Vercel.</p>`;
       }
     }
 
